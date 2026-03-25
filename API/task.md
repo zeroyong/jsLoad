@@ -7,6 +7,9 @@
 - [完成] 创建基于API接口的图片下载脚本 (download_mm_api.py)
 - [完成] 优化图片下载脚本支持meimei.tvv.tw域名
 - [完成] 添加正确的HTTP请求头信息（Referer, User-Agent等）
+- [完成] 创建.gitignore文件，忽略.history等不需要git管理的文件和目录
+- [完成] 整理py文件目录结构，按功能分类文件
+- [完成] 创建README.md说明文件，说明新的目录结构和使用方法
 
 ## 项目分析总结
 

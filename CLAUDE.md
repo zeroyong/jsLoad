@@ -141,3 +141,9 @@ Always update the `API/task.md` file when completing tasks to maintain project r
 - Referer headers are set appropriately for image APIs
 - Error handling is implemented for network requests
 - No sensitive information should be committed to the repository
+
+# 行为准则
+- 始终在现有文件中进行修改。
+- 除非明确要求创建新模块，否则严禁创建副本或带后缀的新文件。
+- 优先使用 `sed` 或局部编辑工具修改代码行。
+- 任务完成后同步更新到task.md文件
