@@ -1,6 +1,7 @@
 # 忽略历史记录文件夹
 .history/
-
+.images
+.images1
 # 忽略临时文件
 temp_page.html
 mm_page.html
@@ -9,6 +10,7 @@ mm_page.html
 images/
 小说下载/
 py文件/images/
+py文件/images1/
 py文件/小说下载/
 
 # 忽略Python缓存和临时文件

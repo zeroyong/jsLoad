@@ -62,9 +62,11 @@ pip install requests beautifulsoup4 rich pyperclip
 
 2. **download_mm_api.py** - Image Downloader
    - Web scraping for image URLs
-   - API-based image downloading
-   - Proper HTTP headers and referrer handling
-   - Uses: requests, BeautifulSoup
+   - API-based image downloading with optimized headers
+   - Retry logic and timeout handling for stable downloads
+   - Proxy support for network requests
+   - Multi-threaded downloading with progress tracking
+   - Uses: requests, BeautifulSoup, concurrent.futures, rich
 
 3. **fetch_wallpapers.py** - Wallpaper Downloader
    - Multiple search strategies for finding images
@@ -109,10 +111,35 @@ soup = BeautifulSoup(response.text, 'html.parser')
 ```python
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
-with ThreadPoolExecutor(max_workers=8) as executor:
+with ThreadPoolExecutor(max_workers=6) as executor:
     futures = [executor.submit(download_function, url) for url in urls]
     for future in as_completed(futures):
         result = future.result()
+```
+
+### Optimized Image Downloading
+```python
+# Image downloads with retry logic, proxy support and proper headers
+def download_with_retry(img_url, max_retries=3):
+    proxies = {
+        'http': 'http://127.0.0.1:7897',
+        'https': 'http://127.0.0.1:7897'
+    }
+
+    for attempt in range(max_retries):
+        try:
+            headers = {
+                'Referer': 'https://mm.tvv.tw/',
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36'
+            }
+            response = requests.get(img_url, headers=headers, timeout=(10, 30), stream=True, proxies=proxies)
+            # Process download with progress tracking
+        except Exception as e:
+            if attempt < max_retries - 1:
+                time.sleep(2 ** attempt)  # Exponential backoff
+                continue
+            else:
+                raise e
 ```
 
 ### Progress Bar Implementation
@@ -140,10 +167,12 @@ Always update the `API/task.md` file when completing tasks to maintain project r
 - Scripts use proper User-Agent headers to avoid blocking
 - Referer headers are set appropriately for image APIs
 - Error handling is implemented for network requests
+- Retry logic with exponential backoff prevents aggressive retries
 - No sensitive information should be committed to the repository
 
 # 行为准则
 - 始终在现有文件中进行修改。
+- 保持使用中文
 - 除非明确要求创建新模块，否则严禁创建副本或带后缀的新文件。
 - 优先使用 `sed` 或局部编辑工具修改代码行。
 - 任务完成后同步更新到task.md文件

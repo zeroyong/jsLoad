@@ -1,5 +1,5 @@
 ## 图片api
-GET /meimei/uploads/%E6%80%A7%E6%84%9F%E7%BE%8E%E5%A5%B3/%E6%80%A7%E6%84%9F%E6%A8%A1%E7%89%B9%E5%A4%8F%E8%A5%BF%E8%B2%8C%E7%BE%8E%E5%A4%A7%E9%95%BF%E8%85%BF%E5%BE%88%E8%BF%B7%E4%BA%BA/hudwbdxqf0x.jpg HTTP/1.1
+GET /meimei/uploads/.jpg HTTP/1.1
 Host: meimei.tvv.tw
 Pragma: no-cache
 Cache-Control: no-cache
