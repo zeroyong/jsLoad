@@ -176,3 +176,4 @@ Always update the `API/task.md` file when completing tasks to maintain project r
 - 除非明确要求创建新模块，否则严禁创建副本或带后缀的新文件。
 - 优先使用 `sed` 或局部编辑工具修改代码行。
 - 任务完成后同步更新到task.md文件
+- 调试py文件不需要保存html文件到本地

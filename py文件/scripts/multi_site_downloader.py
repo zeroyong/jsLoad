@@ -55,9 +55,9 @@ class MultiSiteDownloader:
                 try:
                     site_config = SiteConfig(config_file)
                     sites[site_config.name] = site_config
-                    console.print(f"[green]✓[/green] 已加载网站配置: {site_config.display_name}")
+                    console.print(f"[green]LOADED[/green] 已加载网站配置: {site_config.display_name}")
                 except Exception as e:
-                    console.print(f"[red]✗[/red] 加载配置失败 {config_file}: {str(e)}")
+                    console.print(f"[red]FAILED[/red] 加载配置失败 {config_file}: {str(e)}")
         return sites
 
     def detect_site(self, url):
@@ -100,14 +100,14 @@ class MultiSiteDownloader:
                 start_download_time = time.time()
 
                 with open(filepath, 'wb') as f:
-                    for data in response.iter_content(chunk_size=16384):
+                    for data in response.iter_content(chunk_size=32768):  # 增大块大小到32KB
                         if data:
                             size = f.write(data)
                             downloaded += size
 
-                            # 每0.5秒更新一次进度
+                            # 每0.3秒更新一次进度，减少更新频率
                             current_time = time.time()
-                            if current_time - last_update_time >= 0.5:
+                            if current_time - last_update_time >= 0.3:
                                 elapsed_time = current_time - start_download_time
                                 speed = downloaded / elapsed_time if elapsed_time > 0 else 0
 
@@ -125,7 +125,7 @@ class MultiSiteDownloader:
                     if downloaded < total_size:
                         progress.update(task_id, completed=total_size)
                     else:
-                        progress.update(task_id, advance=size)
+                        progress.update(task_id, completed=downloaded)
 
                 return True, filename
 
@@ -149,22 +149,20 @@ class MultiSiteDownloader:
                 response.raise_for_status()
                 response.encoding = 'utf-8'
 
-                # 保存页面用于调试
-                with open(f'{site_config.name}_page.html', 'w', encoding='utf-8') as f:
-                    f.write(response.text)
-
                 # 解析HTML
                 soup = BeautifulSoup(response.text, 'html.parser')
 
                 # 获取文章标题
                 title_element = soup.select_one(site_config.selectors['title'])
                 if title_element:
-                    folder_name = title_element.get_text().strip()
-                    # 清理文件夹名称，移除非法字符
-                    folder_name = re.sub(r'[<>:"/\\|?*]', '', folder_name)
-                    folder_name = folder_name[:50]  # 限制长度
+                    title = title_element.get_text().strip()
+                    # 清理标题，移除非法字符
+                    title = re.sub(r'[<>:"/\\|?*]', '', title)
+                    title = title[:30]  # 限制标题长度
+                    # 使用网站display_name作为主文件夹，标题作为子文件夹
+                    folder_name = f"{site_config.display_name}/{title}"
                 else:
-                    folder_name = f"{site_config.name}_{int(time.time())}"
+                    folder_name = f"{site_config.display_name}/{site_config.name}_{int(time.time())}"
 
                 # 创建以标题命名的文件夹
                 images_folder = os.path.join('images', folder_name)
@@ -174,22 +172,101 @@ class MultiSiteDownloader:
                 console.print(f"[bold green]✓[/bold green] 文章标题: [cyan]{folder_name}[/cyan]")
                 console.print(f"[bold green]✓[/bold green] 保存路径: [cyan]{images_folder}[/cyan]\n")
 
-                # 提取图片
-                target_images = []
-                img_elements = soup.select(site_config.selectors['images'])
+                # 检查是否支持多页
+                all_target_images = []
+                page_links_selector = site_config.selectors.get('page_links')
 
-                for img in img_elements:
-                    src = img.get('src', '')
-                    if src:
-                        img_url = src if src.startswith('http') else urljoin(site_config.base_url, src)
-                        filename = os.path.basename(img_url.split('?')[0]) or f"image_{len(target_images)+1}.jpg"
-                        target_images.append((img_url, filename))
+                if page_links_selector and site_config.name == 'meirentu_cc':
+                    # 美人图网站特殊处理：获取总页数
+                    page_links = soup.select(page_links_selector)
+                    if len(page_links) >= 2:
+                        try:
+                            total_pages = int(page_links[-2].get_text())
+                            console.print(f"[bold blue]检测到多页内容，共 {total_pages} 页[/bold blue]")
 
-                return target_images, images_folder
+                            # 构建所有页面的URL
+                            page_urls = []
+                            for page_num in range(1, total_pages + 1):
+                                if page_num == 1:
+                                    page_urls.append(url)
+                                else:
+                                    # 构建页面URL，例如：https://meirentu.cc/pic/264828285861-page.html
+                                    # 移除最后的-数字.html部分，然后添加新的页码
+                                    if '-' in url and url.endswith('.html'):
+                                        # 找到最后一个-的位置
+                                        last_dash_index = url.rfind('-')
+                                        # 移除最后的-数字.html部分
+                                        base_part = url[:last_dash_index]
+                                        page_url = f"{base_part}-{page_num}.html"
+                                    else:
+                                        # 如果没有-，则直接在.html前添加页码
+                                        page_url = url.replace('.html', f'-{page_num}.html')
+                                    page_urls.append(page_url)
+
+                            console.print(f"[bold blue]使用多线程处理 {total_pages} 个页面...[/bold blue]")
+
+                            # 使用多线程并发处理所有页面
+                            with ThreadPoolExecutor(max_workers=min(6, total_pages)) as executor:
+                                # 提交所有页面处理任务
+                                future_to_page = {}
+                                for page_num, page_url in enumerate(page_urls, 1):
+                                    console.print(f"[cyan]提交第 {page_num}/{total_pages} 页: {page_url}[/cyan]")
+                                    future = executor.submit(self._extract_images_from_single_page, page_url, site_config)
+                                    future_to_page[future] = (page_num, page_url)
+
+                                # 收集所有页面的图片
+                                for future in as_completed(future_to_page):
+                                    page_num, page_url = future_to_page[future]
+                                    try:
+                                        page_images = future.result()
+                                        all_target_images.extend(page_images)
+                                        console.print(f"[green]第 {page_num} 页完成，获取 {len(page_images)} 张图片[/green]")
+                                    except Exception as e:
+                                        console.print(f"[red]第 {page_num} 页处理失败: {str(e)}[/red]")
+
+                        except (ValueError, IndexError) as e:
+                            console.print(f"[yellow]无法解析页数，仅下载当前页: {str(e)}[/yellow]")
+                            all_target_images = self._extract_images_from_single_page(url, site_config)
+                    else:
+                        all_target_images = self._extract_images_from_single_page(url, site_config)
+                else:
+                    all_target_images = self._extract_images_from_single_page(url, site_config)
+
+                return all_target_images, images_folder
 
         except Exception as e:
             console.print(f"[bold red]获取页面失败: {str(e)}[/bold red]")
             return [], None
+
+    def _extract_images_from_single_page(self, url, site_config):
+        """从单页提取图片"""
+        try:
+            response = requests.get(
+                url,
+                headers=site_config.headers,
+                timeout=30,
+                proxies=site_config.proxies
+            )
+            response.raise_for_status()
+            response.encoding = 'utf-8'
+
+            soup = BeautifulSoup(response.text, 'html.parser')
+
+            target_images = []
+            img_elements = soup.select(site_config.selectors['images'])
+
+            for img in img_elements:
+                src = img.get('src', '')
+                if src:
+                    img_url = src if src.startswith('http') else urljoin(site_config.base_url, src)
+                    filename = os.path.basename(img_url.split('?')[0]) or f"image_{len(target_images)+1}.jpg"
+                    target_images.append((img_url, filename))
+
+            return target_images
+
+        except Exception as e:
+            console.print(f"[yellow]页面 {url} 提取失败: {str(e)}[/yellow]")
+            return []
 
     def download_from_url(self, url):
         """从指定URL下载图片"""
@@ -230,8 +307,9 @@ class MultiSiteDownloader:
             # 主进度条
             overall_task = progress.add_task("[bold yellow]总体进度", total=len(target_images))
 
-            # 使用网站配置的并发数
-            with ThreadPoolExecutor(max_workers=site_config.max_workers) as executor:
+            # 使用网站配置的并发数，对于大量图片适当增加并发数
+            max_workers = min(site_config.max_workers * 2, 16) if len(target_images) > 20 else site_config.max_workers
+            with ThreadPoolExecutor(max_workers=max_workers) as executor:
                 futures = []
                 for img_url, filename in target_images:
                     # 为每个文件创建一个子进度条
