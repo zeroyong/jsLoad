@@ -55,7 +55,7 @@ def download_single_image(img_url, filename, progress, task_id, save_folder):
             }
 
             # 设置更合理的超时时间，使用代理
-            response = requests.get(img_url, headers=headers, timeout=(10, 30), stream=True, proxies=proxies)
+            response = requests.get(img_url, headers=headers, timeout=(15, 60), stream=True, proxies=proxies)
             response.raise_for_status()
 
             total_size = int(response.headers.get('content-length', 0))
@@ -70,7 +70,7 @@ def download_single_image(img_url, filename, progress, task_id, save_folder):
             start_download_time = time.time()
 
             with open(filepath, 'wb') as f:
-                for data in response.iter_content(chunk_size=8192):  # 增大chunk size
+                for data in response.iter_content(chunk_size=16384):  # 增大chunk size提高传输效率
                     if data:  # 过滤掉空的chunk
                         size = f.write(data)
                         downloaded += size
@@ -190,8 +190,6 @@ def main():
             TaskProgressColumn(),
             "•",
             TimeRemainingColumn(),
-            TextColumn("•"),
-            TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
             console=console
         )
 
@@ -203,8 +201,8 @@ def main():
             # 主进度条
             overall_task = progress.add_task("[bold yellow]总体进度", total=len(target_images))
 
-            # 减少并发数以避免连接阻塞，增加稳定性
-            with ThreadPoolExecutor(max_workers=6) as executor:
+            # 优化并发数以提高下载速度
+            with ThreadPoolExecutor(max_workers=8) as executor:
                 futures = []
                 for img_url, filename in target_images:
                     # 为每个文件创建一个子进度条（初始隐藏，下载时显示）
@@ -329,8 +327,6 @@ def download_from_url(url):
             TaskProgressColumn(),
             "•",
             TimeRemainingColumn(),
-            TextColumn("•"),
-            TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
             console=console
         )
 
@@ -342,8 +338,8 @@ def download_from_url(url):
             # 主进度条
             overall_task = progress.add_task("[bold yellow]总体进度", total=len(target_images))
 
-            # 减少并发数以避免连接阻塞，增加稳定性
-            with ThreadPoolExecutor(max_workers=6) as executor:
+            # 优化并发数以提高下载速度
+            with ThreadPoolExecutor(max_workers=8) as executor:
                 futures = []
                 for img_url, filename in target_images:
                     # 为每个文件创建一个子进度条（初始隐藏，下载时显示）
