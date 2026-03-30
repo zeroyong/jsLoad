@@ -9,8 +9,7 @@ mm_page.html
 # 忽略下载的图片和小说
 images/
 小说下载/
-py文件/images/
-py文件/images1/
+images1/
 py文件/小说下载/
 
 # 忽略Python缓存和临时文件
