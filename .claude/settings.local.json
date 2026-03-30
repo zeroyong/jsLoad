@@ -1,7 +1,9 @@
 {
   "permissions": {
     "allow": [
-      "Bash(cd:*)"
+      "Bash(cd:*)",
+      "Bash(git add:*)",
+      "Bash(git commit -m \"忽略images和images1文件夹，移除已跟踪的图片文件:*)"
     ]
   }
 }
