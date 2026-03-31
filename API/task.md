@@ -2,6 +2,20 @@
 
 ## 已完成任务
 
+### 2025-03-31
+- [完成] 实现 xsnvshen.co 网站适配
+- [完成] 添加 xsnvshen.co 页面解析逻辑 (li.swl-item > img.nolazy)
+- [完成] 实现 data-original 属性提取大图URL功能
+- [完成] 添加 xsnvshen.co 专用请求头和Cookie配置
+- [完成] 更新剪贴板监听支持 xsnvshen.co 链接检测
+- [完成] 更新API文档记录 xsnvshen.co 实现细节
+- [完成] 创建 xsnvshen_co.json 配置文件
+- [完成] 配置保存到"高清图片站"文件夹
+- [完成] 修复语法错误确保脚本正常运行
+- [完成] 更新TODO列表标记任务完成
+- [完成] 修复图片选择器类名 (origin_image lazy 而不是 nolazy)
+- [完成] 更新JSON配置和下载脚本的选择器
+
 ### 2025-03-25
 - [完成] 分析代码库结构并创建CLAUDE.md文件
 - [完成] 创建基于API接口的图片下载脚本 (download_mm_api.py)

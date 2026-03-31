@@ -67,7 +67,7 @@ class MultiSiteDownloader:
                 return site_config
         return None
 
-    def download_single_image(self, img_url, filename, progress, task_id, save_folder, site_config):
+    def download_single_image(self, img_url, filename, progress, task_id, save_folder, site_config, original_url=None):
         """下载单个图片的函数"""
         max_retries = site_config.max_retries
         retry_delay = site_config.retry_delay
@@ -76,6 +76,15 @@ class MultiSiteDownloader:
             try:
                 # 使用网站特定的图片请求头
                 headers = site_config.image_headers.copy()
+
+                # 为xsnvshen.co设置动态Referer
+                if site_config.name == 'xsnvshen_co' and original_url:
+                    import re
+                    # 从原始URL中提取album ID
+                    album_match = re.search(r'/album/(\d+)', original_url)
+                    if album_match:
+                        album_id = album_match.group(1)
+                        headers['Referer'] = f'https://www.xsnvshen.co/album/{album_id}'
 
                 # 设置超时时间
                 timeout = (site_config.timeout['connect'], site_config.timeout['read'])
@@ -256,9 +265,22 @@ class MultiSiteDownloader:
             img_elements = soup.select(site_config.selectors['images'])
 
             for img in img_elements:
-                src = img.get('src', '')
+                # 优先使用data-original属性（针对xsnvshen.co）
+                src = img.get('data-original') or img.get('src', '')
                 if src:
-                    img_url = src if src.startswith('http') else urljoin(site_config.base_url, src)
+                    # 处理xsnvshen.co的图片URL格式
+                    if site_config.name == 'xsnvshen_co':
+                        if src.startswith('//'):
+                            img_url = 'https:' + src
+                        elif src.startswith('/'):
+                            img_url = 'https://img.xsnvshen.co' + src
+                        elif src.startswith('http'):
+                            img_url = src
+                        else:
+                            img_url = 'https://img.xsnvshen.co/' + src
+                    else:
+                        img_url = src if src.startswith('http') else urljoin(site_config.base_url, src)
+
                     filename = os.path.basename(img_url.split('?')[0]) or f"image_{len(target_images)+1}.jpg"
                     target_images.append((img_url, filename))
 
@@ -321,7 +343,8 @@ class MultiSiteDownloader:
                         progress,
                         task_id,
                         images_folder,
-                        site_config
+                        site_config,
+                        url  # 传递原始URL用于动态Referer
                     ))
 
                 for future in as_completed(futures):
