@@ -1,9 +1,3 @@
-/**
- * @Author: xhg
- * @Date:   2025-06-17 21:19:10
- * @Last Modified by:   xhg
- * @Last Modified time: 2025-07-24 22:01:12
- */
 // ==UserScript==
 // @name        自动新跳转到新的标签页-复制到剪贴板
 // @namespace   Violentmonkey Scripts
@@ -414,11 +408,11 @@
                 event.preventDefault();
                 event.stopPropagation();
 
-                // 获取书名文本
-                let fullTitle = titleElement.textContent.trim();
+                // 获取书名文本 - 只复制纯文本，不包含HTML元素
+                let bookName = titleElement.textContent.trim();
                 
                 // 移除分类标签（如 [都市]）和书名外的符号
-                let bookName = fullTitle
+                bookName = bookName
                     .replace(/^\[.*?\]/, '')  // 移除开头的分类标签如 [都市]
                     .replace(/^《|》$/g, '')  // 移除书名外的符号
                     .trim();
