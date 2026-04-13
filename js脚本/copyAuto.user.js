@@ -191,11 +191,13 @@
         if (!window.location.href.includes('https://m.qidian.com/booklist/detail/')) return;
 
         let isNavigating = false;
+        let lastUrl = window.location.href;
 
         // 解析当前页码
         function getCurrentPage() {
-            const urlParts = window.location.pathname.split('/');
-            return parseInt(urlParts[urlParts.length - 1] || '1');
+            const urlParts = window.location.pathname.split('/').filter(p => p);
+            const lastPart = urlParts[urlParts.length - 1];
+            return parseInt(lastPart) || 1;
         }
 
         // 获取总页数
@@ -209,6 +211,12 @@
                     if (pageNum > maxPage) maxPage = pageNum;
                 }
             });
+            // 也检查最后一个页码链接
+            const lastLink = document.querySelector('.y-pagination__item--next a');
+            if (lastLink) {
+                const match = lastLink.href.match(/\/(\d+)\/?$/);
+                if (match) maxPage = parseInt(match[1]);
+            }
             return maxPage;
         }
 
@@ -217,26 +225,40 @@
             if (isNavigating) return;
 
             const scrollPosition = window.innerHeight + window.scrollY;
-            const bodyHeight = document.body.offsetHeight;
+            const documentHeight = document.documentElement.scrollHeight;
 
-            if (scrollPosition >= bodyHeight - 200) {
+            if (scrollPosition >= documentHeight - 300) {
                 const currentPage = getCurrentPage();
                 const totalPages = getTotalPages();
 
-                if (currentPage >= totalPages) {
+                console.log(`当前页: ${currentPage}, 总页数: ${totalPages}`);
+
+                if (currentPage >= totalPages && totalPages > 1) {
                     console.log('已到达最后一页');
                     return;
                 }
 
                 isNavigating = true;
                 const nextPage = currentPage + 1;
-                const bookListId = window.location.pathname.split('/')[3];
+                const urlParts = window.location.pathname.split('/').filter(p => p);
+                const bookListId = urlParts[2];
                 const nextPageUrl = `https://m.qidian.com/booklist/detail/${bookListId}/${nextPage}/`;
 
                 console.log(`滚动到底部，跳转到下一页: ${nextPageUrl}`);
+                
+                // 使用location.href跳转
                 window.location.href = nextPageUrl;
             }
         }
+
+        // 监听URL变化
+        setInterval(() => {
+            if (window.location.href !== lastUrl) {
+                lastUrl = window.location.href;
+                isNavigating = false;
+                console.log('页面已切换，重新启用导航');
+            }
+        }, 500);
 
         window.addEventListener('scroll', checkScrollAndNavigate);
         console.log('起点小说移动端列表页无限滚动跳转已启用');
