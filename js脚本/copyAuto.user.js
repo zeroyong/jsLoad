@@ -15,7 +15,8 @@
 // @match       https://www.qidiantu.com/qianli/*
 // @match       https://www.qidiantu.com/touzi/*
 // @match       https://www.qidiantu.com/dashenxinshu/*
-// @grant       none
+    // @match       https://m.qidian.com/booklist/*
+    // @grant       none
 // @version     1.0
 // @author      xhg
 // @description 2025/6/17 21:19:17
@@ -184,6 +185,63 @@
         console.log('书籍列表页无限滚动跳转已启用');
     }
 
+    // 为 qidian mobile 书籍列表页添加无限滚动加载功能
+    function initInfiniteScrollForQidianMobile() {
+        // 仅在 m.qidian.com/booklist/detail/ 页生效
+        if (!window.location.href.includes('https://m.qidian.com/booklist/detail/')) return;
+
+        let isNavigating = false;
+
+        // 解析当前页码
+        function getCurrentPage() {
+            const urlParts = window.location.pathname.split('/');
+            return parseInt(urlParts[urlParts.length - 1] || '1');
+        }
+
+        // 获取总页数
+        function getTotalPages() {
+            const pageLinks = document.querySelectorAll('.y-pagination__item--page a');
+            let maxPage = 1;
+            pageLinks.forEach(link => {
+                const match = link.href.match(/\/(\d+)\/?$/);
+                if (match) {
+                    const pageNum = parseInt(match[1]);
+                    if (pageNum > maxPage) maxPage = pageNum;
+                }
+            });
+            return maxPage;
+        }
+
+        // 检测滚动并跳转
+        function checkScrollAndNavigate() {
+            if (isNavigating) return;
+
+            const scrollPosition = window.innerHeight + window.scrollY;
+            const bodyHeight = document.body.offsetHeight;
+
+            if (scrollPosition >= bodyHeight - 200) {
+                const currentPage = getCurrentPage();
+                const totalPages = getTotalPages();
+
+                if (currentPage >= totalPages) {
+                    console.log('已到达最后一页');
+                    return;
+                }
+
+                isNavigating = true;
+                const nextPage = currentPage + 1;
+                const bookListId = window.location.pathname.split('/')[3];
+                const nextPageUrl = `https://m.qidian.com/booklist/detail/${bookListId}/${nextPage}/`;
+
+                console.log(`滚动到底部，跳转到下一页: ${nextPageUrl}`);
+                window.location.href = nextPageUrl;
+            }
+        }
+
+        window.addEventListener('scroll', checkScrollAndNavigate);
+        console.log('起点小说移动端列表页无限滚动跳转已启用');
+    }
+
     // 创建全局通知容器
     function createGlobalNotification() {
         if (document.getElementById('global-notification')) return;
@@ -328,6 +386,14 @@
                 'h1.h1-table'
             ],
             url: ['https://www.wenku8.net/book/']
+        },
+        'qidian_mobile': {
+            selectors: [
+                'h2._bookTitle_1dzax_244',
+                'h2[class*="_bookTitle_"]',
+                '.book-detail-wrap h2'
+            ],
+            url: ['https://m.qidian.com/booklist/']
         }
     };
 
@@ -408,8 +474,24 @@
                 event.preventDefault();
                 event.stopPropagation();
 
-                // 获取书名文本 - 只复制纯文本，不包含HTML元素
-                let bookName = titleElement.textContent.trim();
+                // 获取书名文本 - 排除复制按钮的内容
+                let bookName = '';
+                
+                // 如果是h4或h2且内部有刚添加的按钮，需要过滤掉按钮
+                if (titleElement.tagName.toLowerCase() === 'h4' || titleElement.tagName.toLowerCase() === 'h2') {
+                    const nodes = Array.from(titleElement.childNodes);
+                    bookName = nodes
+                        .filter(node => {
+                            if (node.nodeType === Node.TEXT_NODE) return true;
+                            if (node.nodeType === Node.ELEMENT_NODE && !node.hasAttribute('data-copy-button')) return true;
+                            return false;
+                        })
+                        .map(node => node.textContent || '')
+                        .join('')
+                        .trim();
+                } else {
+                    bookName = titleElement.textContent.trim();
+                }
                 
                 // 移除分类标签（如 [都市]）和书名外的符号
                 bookName = bookName
@@ -419,7 +501,6 @@
 
                 // 复制到剪贴板
                 navigator.clipboard.writeText(bookName).then(() => {
-                    // 显示全局通知
                     showGlobalNotification('复制成功!', 'success');
                 }).catch(err => {
                     console.error('复制失败', err);
@@ -453,8 +534,8 @@
                     const copyButton = createCopyButton(titleElement);
                     
                     // 根据元素类型选择插入方式
-                    if (titleElement.tagName.toLowerCase() === 'h4') {
-                        // h4 标签：在其内部追加按钮
+                    if (titleElement.tagName.toLowerCase() === 'h4' || titleElement.tagName.toLowerCase() === 'h2') {
+                        // h4 或 h2 标签：在其内部追加按钮
                         titleElement.appendChild(copyButton);
                     } else if (titleElement.tagName.toLowerCase() === 'a') {
                         // a 标签：在其后插入按钮
@@ -852,6 +933,7 @@
         observeDOM();
         addRightClickCloseTab();
         initInfiniteScrollForQidiantu(); // 添加无限滚动功能
+        initInfiniteScrollForQidianMobile(); // 起点移动端无限滚动
 
         // 添加复制按钮到不同网站
         addCopyButtonToBookTitle();
