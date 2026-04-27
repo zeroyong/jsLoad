@@ -15,11 +15,12 @@
 // @match       https://www.qidiantu.com/qianli/*
 // @match       https://www.qidiantu.com/touzi/*
 // @match       https://www.qidiantu.com/dashenxinshu/*
+    // @match       https://m.qidian.com/book/*
     // @match       https://m.qidian.com/booklist/*
     // @grant       none
-// @version     1.0
+// @version     1.1
 // @author      xhg
-// @description 2025/6/17 21:19:17
+// @description 2025/6/17 21:19:17 - 增加起点移动端书名页复制按钮
 // ==/UserScript==
 
 (function() {
@@ -413,9 +414,11 @@
             selectors: [
                 'h2._bookTitle_1dzax_244',
                 'h2[class*="_bookTitle_"]',
-                '.book-detail-wrap h2'
+                '.book-detail-wrap h2',
+                'h1.detail__header-detail__title',
+                '.book-list-wrap a[href*="/book/"]'
             ],
-            url: ['https://m.qidian.com/booklist/']
+            url: ['https://m.qidian.com/booklist/', 'https://m.qidian.com/book/']
         }
     };
 
@@ -472,15 +475,15 @@
                 border: none;
                 cursor: pointer;
                 font-size: ${titleElement.tagName.toLowerCase() === 'h1' || titleElement.tagName.toLowerCase() === 'h4' ? '16px' : '14px'};
-                margin-left: 8px;
-                margin-right: 5px;
+                margin-right: 8px;
+                margin-left: 5px;
                 margin-top: -3px;
                 padding: 0;
                 transition: transform 0.2s;
-                position: static; /* 使按钮随内容正常流动 */
-                display: inline-block; /* 确保按钮在文本流中 */
+                position: static;
+                display: inline-block;
                 line-height: 1;
-                vertical-align: baseline; /* 与文本基线对齐 */
+                vertical-align: baseline;
             `;
 
             // 悬hover效果
@@ -499,8 +502,10 @@
                 // 获取书名文本 - 排除复制按钮的内容
                 let bookName = '';
                 
-                // 如果是h4或h2且内部有刚添加的按钮，需要过滤掉按钮
-                if (titleElement.tagName.toLowerCase() === 'h4' || titleElement.tagName.toLowerCase() === 'h2') {
+                // 如果是h4、h2或h1且内部有刚添加的按钮，需要过滤掉按钮
+                if (titleElement.tagName.toLowerCase() === 'h4' || 
+                    titleElement.tagName.toLowerCase() === 'h2' ||
+                    titleElement.tagName.toLowerCase() === 'h1') {
                     const nodes = Array.from(titleElement.childNodes);
                     bookName = nodes
                         .filter(node => {
@@ -556,12 +561,20 @@
                     const copyButton = createCopyButton(titleElement);
                     
                     // 根据元素类型选择插入方式
-                    if (titleElement.tagName.toLowerCase() === 'h4' || titleElement.tagName.toLowerCase() === 'h2') {
-                        // h4 或 h2 标签：在其内部追加按钮
+                    if (titleElement.tagName.toLowerCase() === 'h4' || 
+                        titleElement.tagName.toLowerCase() === 'h2' ||
+                        titleElement.tagName.toLowerCase() === 'h1') {
+                        // h4 或 h2 或 h1 标签：在其内部追加按钮
                         titleElement.appendChild(copyButton);
+                        // 移除 overflow: hidden 以确保按钮可见
+                        titleElement.style.overflow = 'visible';
+                        titleElement.style.textOverflow = 'clip';
                     } else if (titleElement.tagName.toLowerCase() === 'a') {
-                        // a 标签：在其后插入按钮
-                        titleElement.parentNode.insertBefore(copyButton, titleElement.nextSibling);
+                        // a 标签：在其左边插入按钮
+                        titleElement.parentNode.insertBefore(copyButton, titleElement);
+                        // 移除 overflow: hidden 以确保按钮可见
+                        titleElement.style.overflow = 'visible';
+                        titleElement.style.textOverflow = 'clip';
                     } else {
                         // 其他标签：在其后插入按钮
                         titleElement.parentNode.insertBefore(copyButton, titleElement.nextSibling);
