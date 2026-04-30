@@ -1,5 +1,14 @@
 # 任务记录
 
+## 版本更新
+
+### 1.0.1 (2026-04-30)
+- 新增拾光壁纸下载器 (downImages.py)
+- 支持剪贴板监听 gallery.timeline.ink URL
+- 实现URL参数解析和AES-CBC解密
+- 支持多域名图片下载 (ananas.chaoxing.com, hdslb.com, duitang.com)
+- 多线程下载带进度显示
+
 ## 已完成任务
 
 
