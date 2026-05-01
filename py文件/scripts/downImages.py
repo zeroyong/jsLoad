@@ -29,7 +29,7 @@ console = Console()
 
 # --- 配置 ---
 SAVE_DIR = "拾光壁纸下"
-MAX_WORKERS = 8
+MAX_WORKERS = 16
 DEVICE_ID = "719b0f2ea598891f069ba8c25d81ec82"
 
 # 匹配拾光壁纸URL的正则
@@ -155,7 +155,7 @@ def download_img(item, save_dir):
         
         if 'image' not in content_type.lower():
             actual_url = resp.url
-            return False, f"{img_id}: {content_type[:20]} -> {actual_url[:50]}", 0
+            return False, f"{img_id}: {content_type} -> {actual_url[:40]}", 0
         
         file_size = len(resp.content)
         
