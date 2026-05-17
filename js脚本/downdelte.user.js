@@ -3,7 +3,7 @@
 // @namespace   Violentmonkey Scripts
 // @match       https://tongquet.com/book/*
 // @grant       none
-// @version     1.4
+// @version     1.6
 // @author      -
 // @description 替换回到顶部按钮为字体大小调节器，半圆可拖拽吸附
 // ==/UserScript==
@@ -21,20 +21,17 @@
 
     let autoHideTimer = null;
 
-    // ── 字号 ──
+    // ── CSS 规则方式注入字号 ──
+    const styleEl = document.createElement('style');
+    styleEl.id = 'tongquet-font-size-rule';
+
     function getFontSize() {
         return parseInt(localStorage.getItem(STORAGE_KEY)) || DEFAULT_SIZE;
     }
     function setFontSize(size) {
         size = Math.max(MIN_SIZE, Math.min(MAX_SIZE, size));
         localStorage.setItem(STORAGE_KEY, size);
-        applyFontSize(size);
-    }
-    function applyFontSize(size) {
-        const container = document.getElementById('reader-content');
-        if (!container) return;
-        const ps = container.querySelectorAll('p');
-        ps.forEach(p => p.style.fontSize = size + 'px');
+        styleEl.textContent = `#reader-content p { font-size: ${size}px !important; }`;
     }
 
     // ── 位置 ──
@@ -223,10 +220,12 @@
         const oldBtn = document.getElementById('back-to-top');
         if (oldBtn) oldBtn.remove();
 
+        document.head.appendChild(styleEl);
+        setFontSize(getFontSize());
+
         const controls = createControls();
         document.body.appendChild(controls);
-        applyFontSize(getFontSize());
-        startAutoHide(controls);
+        collapsePanel(controls);
     }
 
     if (document.readyState === 'loading') {
