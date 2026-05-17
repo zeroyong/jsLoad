@@ -3,7 +3,7 @@
 // @namespace   Violentmonkey Scripts
 // @match       https://tongquet.com/book/*
 // @grant       none
-// @version     1.3
+// @version     1.4
 // @author      -
 // @description 替换回到顶部按钮为字体大小调节器，半圆可拖拽吸附
 // ==/UserScript==
@@ -17,7 +17,7 @@
     const MIN_SIZE = 12;
     const MAX_SIZE = 36;
     const DEFAULT_BOTTOM = 100;
-    const KNOB_SIZE = 44;
+    const KNOB_SIZE = 32;
 
     let autoHideTimer = null;
 
