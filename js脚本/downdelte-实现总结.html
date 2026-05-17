@@ -295,6 +295,24 @@
       </ul>
     </div>
   </div>
+
+  <div class="card">
+    <h3><span class="tag">v1.3</span>半圆可拖拽 + 自动吸附</h3>
+    <p>半圆有时会挡住正文，增加拖拽移动功能，位置自动保存。</p>
+
+    <div class="problem">
+      <strong>问题：</strong>手机端 touch 拖拽与页面滚动冲突，且拖拽后可能触发 click 导致误展开。
+    </div>
+    <div class="solution">
+      <ul>
+        <li>使用 <code>touchstart</code> + <code>touchmove</code>（<code>passive: false</code>）拦截滚动</li>
+        <li>拖拽时设置 <code>transition: none</code> 消除动画延迟</li>
+        <li>用 <code>dragState.moved</code> 标志区分拖拽与点击，拖拽后阻止 click 展开</li>
+        <li>释放后 snap 到最近 10px 网格，位置存入 <code>localStorage</code></li>
+        <li>展开面板跟随半圆同一 <code>bottom</code> 值</li>
+      </ul>
+    </div>
+  </div>
 </div>
 
 <!-- 代码结构 -->
@@ -303,13 +321,15 @@
   <div class="card">
     <pre>downdelte.user.js
 ├── 元信息（@match, @grant 等）
-├── STORAGE_KEY / 字号范围
+├── STORAGE_KEY / POS_STORAGE_KEY
 ├── getFontSize / setFontSize        ← localStorage
 ├── applyFontSize(size)              ← 遍历 p 设 fontSize
+├── getPos / savePos                 ← 拖拽位置 localStorage
+├── initDrag / onStart               ← touch/mouse 拖拽 + 10px 吸附
 ├── createControls()
 │   ├── .fsc-panel（展开面板）        ← + / 字号 / -
-│   ├── .fsc-knob（收起旋钮）         ← 44px 圆形 "Aa"
-│   └── click 事件
+│   ├── .fsc-knob（收起旋钮）         ← 44px 圆形 "Aa"，可拖拽
+│   └── click 事件（跳过拖拽误触）
 ├── collapsePanel()                  ← right → -22px
 ├── expandPanel()                    ← right → 20px
 ├── startAutoHide()                  ← 5s 倒计时
@@ -330,6 +350,9 @@
       <li><strong>事件冒泡：</strong>+/- 用 <code>e.stopPropagation()</code> 防止触发 wrap 的 click</li>
       <li><strong>加载策略：</strong>检测 <code>document.readyState</code>，非 loading 则立即执行</li>
       <li><strong>范围限制：</strong><code>Math.max(12, Math.min(36, size))</code></li>
+      <li><strong>拖拽吸附：</strong>半圆可垂直拖拽，释放后 snap 到最近 10px 网格，位置存入 localStorage</li>
+      <li><strong>防误触：</strong>拖拽时设 <code>dragState.moved</code> 标志，click 事件检测到拖拽则跳过展开</li>
+      <li><strong>双端兼容：</strong>同时绑定 <code>touch</code> 和 <code>mouse</code> 事件，<code>touchstart</code> 设 <code>passive: false</code> 阻止滚动冲突</li>
     </ul>
   </div>
 </div>
@@ -347,6 +370,9 @@
         <tr><td>隐藏后直角不像半圆</td><td><code>border-radius: 8px</code> 不够</td><td>改用 44px <code>border-radius: 50%</code> 圆形旋钮</td></tr>
         <tr><td>+/- 点击触发外层 click</td><td>事件冒泡</td><td><code>e.stopPropagation()</code></td></tr>
         <tr><td>刷新后字号恢复</td><td>未持久化</td><td><code>localStorage</code></td></tr>
+        <tr><td>拖拽后误触展开</td><td>touchmove 后触发 click</td><td><code>dragState.moved</code> 标志跳过 click</td></tr>
+        <tr><td>拖拽时页面滚动</td><td>touchmove 默认行为</td><td><code>passive: false</code> + <code>preventDefault()</code></td></tr>
+        <tr><td>拖拽时动画干扰</td><td>transition 影响位置响应</td><td>拖拽中设 <code>transition: none</code></td></tr>
       </tbody>
     </table>
   </div>

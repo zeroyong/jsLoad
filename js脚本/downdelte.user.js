@@ -3,29 +3,33 @@
 // @namespace   Violentmonkey Scripts
 // @match       https://tongquet.com/book/*
 // @grant       none
-// @version     1.2
+// @version     1.3
 // @author      -
-// @description 替换回到顶部按钮为字体大小调节器
+// @description 替换回到顶部按钮为字体大小调节器，半圆可拖拽吸附
 // ==/UserScript==
 
 (function() {
     'use strict';
 
     const STORAGE_KEY = 'tongquet_font_size';
+    const POS_STORAGE_KEY = 'tongquet_font_pos';
     const DEFAULT_SIZE = 18;
     const MIN_SIZE = 12;
     const MAX_SIZE = 36;
+    const DEFAULT_BOTTOM = 100;
+    const KNOB_SIZE = 44;
 
+    let autoHideTimer = null;
+
+    // ── 字号 ──
     function getFontSize() {
         return parseInt(localStorage.getItem(STORAGE_KEY)) || DEFAULT_SIZE;
     }
-
     function setFontSize(size) {
         size = Math.max(MIN_SIZE, Math.min(MAX_SIZE, size));
         localStorage.setItem(STORAGE_KEY, size);
         applyFontSize(size);
     }
-
     function applyFontSize(size) {
         const container = document.getElementById('reader-content');
         if (!container) return;
@@ -33,9 +37,71 @@
         ps.forEach(p => p.style.fontSize = size + 'px');
     }
 
-    let autoHideTimer = null;
+    // ── 位置 ──
+    function getPos() {
+        try {
+            return JSON.parse(localStorage.getItem(POS_STORAGE_KEY)) || { bottom: DEFAULT_BOTTOM };
+        } catch { return { bottom: DEFAULT_BOTTOM }; }
+    }
+    function savePos(pos) {
+        localStorage.setItem(POS_STORAGE_KEY, JSON.stringify(pos));
+    }
 
+    // ── 拖拽 ──
+    let dragState = null;
+
+    function initDrag(knob, wrap) {
+        knob.addEventListener('touchstart', (e) => onStart(e, wrap), { passive: false });
+        knob.addEventListener('mousedown', (e) => onStart(e, wrap));
+    }
+
+    function onStart(e, wrap) {
+        const touch = e.touches ? e.touches[0] : e;
+        const rect = wrap.getBoundingClientRect();
+        dragState = {
+            wrap,
+            startY: touch.clientY,
+            startBottom: parseFloat(wrap.style.bottom) || getPos().bottom,
+        };
+        wrap.style.transition = 'none';
+
+        const onMove = (ev) => {
+            if (!dragState) return;
+            const t = ev.touches ? ev.touches[0] : ev;
+            const dy = dragState.startBottom + (dragState.startY - t.clientY);
+            const clamped = Math.max(10, Math.min(window.innerHeight - KNOB_SIZE - 10, dy));
+            wrap.style.bottom = clamped + 'px';
+            dragState.moved = true;
+            ev.preventDefault();
+        };
+        const onEnd = () => {
+            if (!dragState) return;
+            if (dragState.moved) {
+                const final = parseFloat(wrap.style.bottom) || getPos().bottom;
+                const snapped = Math.round(final / 10) * 10;
+                const clamped = Math.max(10, Math.min(window.innerHeight - KNOB_SIZE - 10, snapped));
+                wrap.style.bottom = clamped + 'px';
+                savePos({ bottom: clamped });
+            }
+            if (!wrap.classList.contains('collapsed')) {
+                wrap.style.transition = 'right .35s ease';
+            }
+            document.removeEventListener('touchmove', onMove);
+            document.removeEventListener('touchend', onEnd);
+            document.removeEventListener('mousemove', onMove);
+            document.removeEventListener('mouseup', onEnd);
+            dragState = null;
+        };
+        document.addEventListener('touchmove', onMove, { passive: false });
+        document.addEventListener('touchend', onEnd);
+        document.addEventListener('mousemove', onMove);
+        document.addEventListener('mouseup', onEnd);
+    }
+
+    // ── 控件 ──
     function createControls() {
+        const pos = getPos();
+
         const wrap = document.createElement('div');
         wrap.id = 'font-size-controls';
         wrap.className = 'expanded';
@@ -75,22 +141,25 @@
         knob.className = 'fsc-knob';
         knob.textContent = 'Aa';
         knob.style.cssText = `
-            width: 44px; height: 44px; border-radius: 50%;
+            width: ${KNOB_SIZE}px; height: ${KNOB_SIZE}px; border-radius: 50%;
             background: rgba(0,0,0,.7); color: #fff;
             font-size: 14px; font-weight: bold;
             display: none; align-items: center; justify-content: center;
-            user-select: none; cursor: pointer;
+            user-select: none; cursor: grab; touch-action: none;
         `;
 
         wrap.appendChild(panel);
         wrap.appendChild(knob);
 
         wrap.style.cssText = `
-            position: fixed; bottom: 100px; right: 20px; z-index: 9999;
+            position: fixed; bottom: ${pos.bottom}px; right: 20px; z-index: 9999;
             transition: right .35s ease;
         `;
 
+        initDrag(knob, wrap);
+
         wrap.addEventListener('click', (e) => {
+            if (dragState && dragState.moved) return;
             if (wrap.classList.contains('collapsed')) {
                 e.stopPropagation();
                 expandPanel(wrap);
@@ -110,7 +179,8 @@
         const knob = el.querySelector('.fsc-knob');
         panel.style.display = 'none';
         knob.style.display = 'flex';
-        el.style.right = '-22px';
+        el.style.right = `-${KNOB_SIZE / 2}px`;
+        el.style.transition = 'right .35s ease';
     }
 
     function expandPanel(el) {
@@ -121,6 +191,7 @@
         knob.style.display = 'none';
         panel.style.display = 'flex';
         el.style.right = '20px';
+        el.style.transition = 'right .35s ease';
     }
 
     function startAutoHide(el) {
@@ -147,6 +218,7 @@
         `;
     }
 
+    // ── 初始化 ──
     function init() {
         const oldBtn = document.getElementById('back-to-top');
         if (oldBtn) oldBtn.remove();
