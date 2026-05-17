@@ -1,0 +1,50 @@
+[
+  {
+    "ruleSearch": {
+      "bookList": "div.read_book > div.bookbox",
+      "name": "i.iTit > a@text",
+      "author": ".author@text",
+      "kind": ".author@text",
+      "lastChapter": "div.update > a@text",
+      "coverUrl": "div.bookimg > a > img@src",
+      "bookUrl": "i.iTit > a@href",
+      "checkKeyWord": "我的"
+    },
+    "ruleBookInfo": {
+      "name": ".title@text",
+      "author": ".author@text",
+      "kind": ".sort@text",
+      "wordCount": "div.recommend > h2@text",
+      "lastChapter": "div.recommend > h2 > a.0@text",
+      "intro": "div.review > p@text",
+      "coverUrl": "div.synopsisArea_detail > img@src",
+      "tocUrl": "div.directoryArea > p a@href"
+    },
+    "ruleToc": {
+      "chapterList": "div.recommend > div.directoryArea > p[5:]",
+      "chapterName": "div.directoryArea > p > a.5@text",
+      "chapterUrl": "div.directoryArea > p > a.5@href",
+      "updateTime": "div > div > p@text",
+      "nextTocUrl": "div > div > a.1@href"
+    },
+    "ruleContent": {
+      "content": "div#chaptercontent.Readarea.ReadAjax_content > p@text",
+      "title": ".title@text",
+      "nextContentUrl": ".Readpage_up.2@href"
+    },
+    "ruleExplore": {
+      "bookList": "div.recommend > div#main > div.hot_sale",
+      "name": ".title@text",
+      "author": ".author@text",
+      "intro": ".review@text",
+      "bookUrl": ".hot_sale a@href"
+    },
+    "bookSourceType": 0,
+    "bookSourceUrl": "https://su8.sjnyd.cc",
+    "bookSourceName": "小说搜索-手机小说网移动版",
+    "searchUrl": "https://su8.sjnyd.cc/search/,{\"method\":\"POST\"}",
+    "exploreUrl": "[\n  {\n    \"title\": \"总排行榜\",\n    \"url\": \"https://su8.sjnyd.cc/rank/allvisit/\",\n    \"style\": {\n      \"layout_flexGrow\": 1\n    }\n  },\n  {\n    \"title\": \"月排行榜\",\n    \"url\": \"https://su8.sjnyd.cc/rank/monthvisit/\",\n    \"style\": {\n      \"layout_flexGrow\": 1\n    }\n  },\n  {\n    \"title\": \"周排行榜\",\n    \"url\": \"https://su8.sjnyd.cc/rank/weekvisit/\",\n    \"style\": {\n      \"layout_flexGrow\": 1\n    }\n  },\n  {\n    \"title\": \"收 藏 榜\",\n    \"url\": \"https://su8.sjnyd.cc/rank/goodnum/\",\n    \"style\": {\n      \"layout_flexGrow\": 1\n    }\n  },\n  {\n    \"title\": \"玄幻奇幻\",\n    \"url\": \"https://su8.sjnyd.cc/quanben/sortxhqh_1.html\",\n    \"style\": {\n      \"layout_flexGrow\": 1\n    }\n  },\n  {\n    \"title\": \"仙侠小说\",\n    \"url\": \"https://su8.sjnyd.cc/quanben/sortxx_1.html\",\n    \"style\": {\n      \"layout_flexGrow\": 1\n    }\n  },\n  {\n    \"title\": \"都市现实\",\n    \"url\": \"https://su8.sjnyd.cc/quanben/sortds_1.html\",\n    \"style\": {\n      \"layout_flexGrow\": 1\n    }\n  },\n  {\n    \"title\": \"军事小说\",\n    \"url\": \"https://su8.sjnyd.cc/quanben/sortjs_1.html\",\n    \"style\": {\n      \"layout_flexGrow\": 1\n    }\n  },\n  {\n    \"title\": \"历史小说\",\n    \"url\": \"https://su8.sjnyd.cc/quanben/sortls_1.html\",\n    \"style\": {\n      \"layout_flexGrow\": 1\n    }\n  },\n  {\n    \"title\": \"游戏体育\",\n    \"url\": \"https://su8.sjnyd.cc/quanben/sortyxty_1.html\",\n    \"style\": {\n      \"layout_flexGrow\": 1\n    }\n  },\n  {\n    \"title\": \"科幻小说\",\n    \"url\": \"https://su8.sjnyd.cc/quanben/sortkh_1.html\",\n    \"style\": {\n      \"layout_flexGrow\": 1\n    }\n  },\n  {\n    \"title\": \"灵异小说\",\n    \"url\": \"https://su8.sjnyd.cc/quanben/sortly_1.html\",\n    \"style\": {\n      \"layout_flexGrow\": 1\n    }\n  }\n]",
+    "header": {},
+    "loginCheckJs": ""
+  }
+]

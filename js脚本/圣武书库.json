@@ -1,0 +1,56 @@
+[{
+    "title": "奇幻·玄幻",
+    "url": "catalog/xuanhuan_{{page}}.html",
+    "style": {
+        "layout_flexGrow": 0.25
+    }
+},
+{
+    "title": "科幻·游戏",
+    "url": "catalog/game_{{page}}.html",
+    "style": {
+        "layout_flexGrow": 0.25
+    }
+},
+{
+    "title": "科幻·排行",
+    "url": "catalog/game.html",
+    "style": {
+        "layout_flexGrow": 0.25
+    }
+},
+{
+    "title": "都市小说",
+    "url": "catalog/dushi_{{page}}.html",
+    "style": {
+        "layout_flexGrow": 0.25
+    }
+},
+{
+    "title": "武侠·仙侠",
+    "url": "catalog/xianxia_{{page}}.html",
+    "style": {
+        "layout_flexGrow": 0.25
+    }
+},
+{
+    "title": "都市·娱乐",
+    "url": "catalog/dushi_{{page}}.html",
+    "style": {
+        "layout_flexGrow": 0.25
+    }
+},
+{
+    "title": "历史·军事",
+    "url": "catalog/lishi_{{page}}.html",
+    "style": {
+        "layout_flexGrow": 0.25
+    }
+},
+{
+    "title": "悬疑·灵异",
+    "url": "catalog/kongbu_{{page}}.html",
+    "style": {
+        "layout_flexGrow": 0.25
+    }
+}]
