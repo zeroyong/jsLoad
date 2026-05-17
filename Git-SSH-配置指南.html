@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Git HTTPS → SSH 切换 & RPC Failed 解决指南</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans SC", sans-serif;
+  background: #f6f8fa;
+  color: #24292f;
+  line-height: 1.7;
+  padding: 40px 20px;
+}
+.container { max-width: 860px; margin: 0 auto; }
+h1 {
+  font-size: 28px; margin-bottom: 6px;
+  background: linear-gradient(135deg, #2b3137, #0969da);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+.subtitle { color: #656d76; font-size: 15px; margin-bottom: 32px; }
+.card {
+  background: #fff;
+  border: 1px solid #d0d7de;
+  border-radius: 8px;
+  padding: 24px 28px;
+  margin-bottom: 20px;
+}
+.card h2 {
+  font-size: 18px;
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 2px solid #ddf4ff;
+  color: #0969da;
+}
+.code-block {
+  background: #f6f8fa;
+  border: 1px solid #d0d7de;
+  border-radius: 6px;
+  padding: 14px 16px;
+  font-family: "JetBrains Mono", "Cascadia Code", "Fira Code", monospace;
+  font-size: 13.5px;
+  overflow-x: auto;
+  margin: 10px 0;
+  position: relative;
+}
+.code-block .lang {
+  position: absolute; top: 6px; right: 10px;
+  font-size: 11px; color: #8b949e;
+  background: #f6f8fa; padding: 0 6px;
+}
+.step { display: flex; gap: 14px; margin-bottom: 16px; }
+.step:last-child { margin-bottom: 0; }
+.step-num {
+  flex-shrink: 0;
+  width: 28px; height: 28px;
+  background: #0969da; color: #fff;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 14px; font-weight: 600;
+}
+.step-body { flex: 1; min-width: 0; }
+.step-body p { margin-bottom: 6px; }
+.step-body .label {
+  display: inline-block;
+  font-size: 12px; font-weight: 600;
+  padding: 2px 8px; border-radius: 4px;
+  margin: 4px 4px 4px 0;
+}
+.label-error { background: #ffebe9; color: #cf222e; }
+.label-success { background: #dafbe1; color: #116329; }
+.label-cmd { background: #ddf4ff; color: #0969da; }
+.label-warn { background: #fff8c5; color: #7a5e00; }
+table {
+  width: 100%; border-collapse: collapse;
+  font-size: 14px; margin: 10px 0;
+}
+th, td {
+  border: 1px solid #d0d7de;
+  padding: 8px 12px; text-align: left;
+}
+th { background: #f6f8fa; font-weight: 600; }
+tr:hover { background: #f6f8fa; }
+ul { padding-left: 20px; }
+ul li { margin-bottom: 4px; }
+.tip {
+  background: #ddf4ff;
+  border: 1px solid #b6e3ff;
+  border-radius: 6px;
+  padding: 12px 16px;
+  font-size: 14px;
+  margin: 10px 0;
+}
+.tip strong { color: #0969da; }
+.error-box {
+  background: #ffebe9;
+  border: 1px solid #ffc1c1;
+  border-radius: 6px;
+  padding: 14px 16px;
+  font-family: monospace;
+  font-size: 13px;
+  margin: 10px 0;
+}
+footer {
+  text-align: center;
+  color: #8b949e;
+  font-size: 13px;
+  margin-top: 40px;
+  padding-top: 20px;
+  border-top: 1px solid #d0d7de;
+}
+@media (max-width: 600px) {
+  body { padding: 20px 12px; }
+  .card { padding: 16px; }
+  .step { gap: 10px; }
+}
+</style>
+</head>
+<body>
+<div class="container">
+
+<h1>🔐 Git HTTPS → SSH 切换</h1>
+<p class="subtitle">解决 <code>RPC failed; curl 56 OpenSSL SSL_read: Connection was reset, errno 10054</code></p>
+
+<div class="card">
+<h2>❌ 问题现象</h2>
+<p>使用 <code>git push</code> 通过 HTTPS 协议推送到 GitHub 时失败：</p>
+<div class="error-box">
+error: RPC failed; curl 56 OpenSSL SSL_read: Connection was reset, errno 10054<br>
+fatal: The remote end hung up unexpectedly<br>
+fatal: The remote end hung up unexpectedly
+</div>
+</div>
+
+<div class="card">
+<h2>⚡ 为什么</h2>
+<table>
+<tr><th>原因</th><th>说明</th></tr>
+<tr><td>🌐 国内网络环境</td><td>GitHub 的 HTTPS 连接常被 GFW 干扰，导致 SSL 连接中途重置</td></tr>
+<tr><td>📦 推送数据量大</td><td>仓库含图片/二进制文件时，长时间的 HTTPS 流式传输更容易被重置</td></tr>
+<tr><td>🔌 SSL 协议层面</td><td>OpenSSL 在 TLS 握手或传输过程中收到 RST 包，无法恢复</td></tr>
+</table>
+<div class="tip">
+<strong>💡 核心思路：</strong>HTTPS 是被动防御（依赖 TLS+网络），SSH 是主动加密通道，更稳定，不会被中途拦截重置。
+</div>
+</div>
+
+<div class="card">
+<h2>📋 解决步骤</h2>
+
+<div class="step">
+<div class="step-num">1</div>
+<div class="step-body">
+<p><span class="label label-cmd">git remote set-url</span>切换远程仓库协议为 SSH</p>
+<div class="code-block">
+git remote set-url origin git@github.com:zeroyong/jsLoad.git
+</div>
+</div>
+</div>
+
+<div class="step">
+<div class="step-num">2</div>
+<div class="step-body">
+<p><span class="label label-cmd">ssh -T</span>测试 SSH 连接，发现权限问题</p>
+<div class="error-box">
+$ ssh -T git@github.com<br>
+@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@<br>
+@         WARNING: UNPROTECTED PRIVATE KEY FILE!          @<br>
+Permissions for 'C:\Users\zsm/.ssh/id_ed25519' are too open.<br>
+It is required that your private key files are NOT accessible by others.<br>
+This private key will be ignored.<br>
+Permission denied (publickey).
+</div>
+<p><span class="label label-warn">⚠ 原因</span> Windows 上 Git 的 OpenSSH 要求私钥文件<b>只能被当前用户访问</b>。由于权限继承，Everyone 组也有读取权限，SSH 出于安全拒绝使用该密钥。</p>
+</div>
+</div>
+
+<div class="step">
+<div class="step-num">3</div>
+<div class="step-body">
+<p><span class="label label-cmd">icacls</span> 修复私钥文件权限</p>
+<p>禁用权限继承 + 移除 Everyone 组 + 仅保留当前用户完全控制：</p>
+<div class="code-block">
+icacls "$env:USERPROFILE\.ssh\id_ed25519" /inheritance:r /grant "${env:USERNAME}:(F)"
+</div>
+</div>
+</div>
+
+<div class="step">
+<div class="step-num">4</div>
+<div class="step-body">
+<p><span class="label label-success">✅ 验证</span>再次测试 SSH 连接</p>
+<div class="code-block">
+$ ssh -T git@github.com<br>
+Hi zeroyong! You've successfully authenticated, but GitHub does not provide shell access.
+</div>
+</div>
+</div>
+
+<div class="step">
+<div class="step-num">5</div>
+<div class="step-body">
+<p><span class="label label-success">✅ 推送成功</span></p>
+<div class="code-block">
+$ git push origin master<br>
+c549ff5..be95f09  master -> master
+</div>
+</div>
+</div>
+
+</div>
+
+<div class="card">
+<h2>🧰 快速自查清单</h2>
+<table>
+<tr><th>步骤</th><th>命令</th><th>预期结果</th></tr>
+<tr><td>查看远程地址</td><td><code>git remote -v</code></td><td>显示 <code>git@github.com:...</code> 开头</td></tr>
+<tr><td>测试 SSH</td><td><code>ssh -T git@github.com</code></td><td>显示 <code>Hi username! You've successfully authenticated</code></td></tr>
+<tr><td>检查公钥</td><td><code>cat ~\.ssh\id_ed25519.pub</code></td><td>以 <code>ssh-ed25519</code> 开头</td></tr>
+<tr><td>GitHub 添加公钥</td><td>https://github.com/settings/keys</td><td>公钥已注册</td></tr>
+<tr><td>私钥权限</td><td><code>icacls ~\.ssh\id_ed25519</code></td><td>仅当前用户有权限，无 Everyone</td></tr>
+<tr><td>最终推送</td><td><code>git push origin master</code></td><td>无错误提示</td></tr>
+</table>
+</div>
+
+<footer>
+  jsLoad / zeroyong &mdash; 2026
+</footer>
+
+</div>
+</body>
+</html>
