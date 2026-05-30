@@ -242,58 +242,61 @@
         return (bytes / (1024 * 1024)).toFixed(2) + ' MB';
     }
 
-    async function downloadWithConcurrency(chapters, onProgress, onComplete) {
+    async function downloadWithConcurrency(chapters, onProgress) {
         const contentArray = new Array(chapters.length);
         const sizes = new Array(chapters.length).fill(0);
         const errors = [];
         const total = chapters.length;
-        const concurrentThreads = calculateConcurrentThreads(total);
-
+        const maxThreads = calculateConcurrentThreads(total);
         let activeCount = 0;
         let completedCount = 0;
         let nextIndex = 0;
         let totalDownloadedSize = 0;
 
-        return new Promise((resolve) => {
-            async function downloadOne(index) {
-                if (!isDownloading || index >= total) return;
+        async function processOne(index) {
+            const chapter = chapters[index];
+            activeCount++;
+            onProgress(index, 'downloading', 0, activeCount, completedCount, totalDownloadedSize);
 
-                activeCount++;
-                const chapter = chapters[index];
-                onProgress(index, 'downloading', 0, activeCount, completedCount, totalDownloadedSize);
-
+            for (let attempt = 0; attempt < 3; attempt++) {
                 try {
-                    const result = await httpRequest(chapter.url, (loaded, total) => {
-                        onProgress(index, 'downloading', loaded, activeCount, completedCount, totalDownloadedSize + loaded);
-                    });
+                    const result = await httpRequest(chapter.url,
+                        (loaded) => onProgress(index, 'downloading', loaded, activeCount, completedCount, totalDownloadedSize + loaded)
+                    );
                     contentArray[index] = result.content;
                     sizes[index] = result.size;
                     totalDownloadedSize += result.size;
-                    completedCount++;
                     activeCount--;
+                    completedCount++;
                     onProgress(index, 'completed', result.size, activeCount, completedCount, totalDownloadedSize);
+                    return;
                 } catch (e) {
+                    if (attempt < 2) continue;
                     contentArray[index] = null;
                     errors.push(chapter.title);
-                    completedCount++;
                     activeCount--;
+                    completedCount++;
                     onProgress(index, 'error', 0, activeCount, completedCount, totalDownloadedSize);
                 }
-
-                while (isDownloading && activeCount < concurrentThreads && nextIndex < total) {
-                    const currentIndex = nextIndex++;
-                    downloadOne(currentIndex);
-                }
-
-                if (completedCount >= total) {
-                    resolve({ contentArray, sizes, errors, totalDownloadedSize });
-                }
             }
+        }
 
-            for (let i = 0; i < Math.min(concurrentThreads, total); i++) {
-                downloadOne(nextIndex++);
+        async function worker() {
+            while (isDownloading) {
+                const idx = nextIndex++;
+                if (idx >= total) break;
+                await processOne(idx);
             }
-        });
+        }
+
+        const numWorkers = Math.min(maxThreads, total);
+        const workers = [];
+        for (let i = 0; i < numWorkers; i++) {
+            workers.push(worker());
+        }
+        await Promise.all(workers);
+
+        return { contentArray, sizes, errors, totalDownloadedSize };
     }
 
     function downloadFile(content, filename) {
@@ -477,8 +480,7 @@
                 (index, status, size, active, completed, downloadedSize) => {
                     updateChapterStatus(index, status, size);
                     updateStats(active, completed, downloadedSize);
-                },
-                null
+                }
             );
 
             if (isDownloading) {
