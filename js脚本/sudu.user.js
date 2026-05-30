@@ -5,7 +5,8 @@
 // @match       https://www.sudugu.org/*/
 // @match       https://www.sudugu.org/*
 // @grant       GM_xmlhttpRequest
-// @version     1.4
+// @grant       GM_download
+// @version     2.0
 // @author      xhg
 // @description 速读谷小说下载器 - 一键下载当前页面所有分章节并合并为单个文件，支持自动跳转下载页
 // ==/UserScript==
@@ -16,9 +17,7 @@
     const BASE_URL = 'https://www.sudugu.org';
     const MAX_CONCURRENT = 5;
     const ESTIMATED_SIZE_PER_CHAPTER_KB = 4600;
-    const AUTO_JUMP_DELAY = 1000;
     let isDownloading = false;
-    let jumpTimeout = null;
 
     function createDownloadButton() {
         const chapterCount = getNovelInfo().chapters.length;
@@ -130,15 +129,14 @@
                 },
                 onload: (response) => {
                     if (response.status >= 200 && response.status < 300) {
-                        const blob = response.response;
-                        const reader = new FileReader();
-                        reader.onload = () => {
-                            resolve({
-                                content: reader.result,
-                                size: blob.size
-                            });
-                        };
-                        reader.readAsText(blob, 'utf-8');
+                        const resp = response.response;
+                        if (typeof resp === 'string') {
+                            resolve({ content: resp, size: new Blob([resp]).size });
+                        } else {
+                            const reader = new FileReader();
+                            reader.onload = () => resolve({ content: reader.result, size: resp.size });
+                            reader.readAsText(resp, 'utf-8');
+                        }
                     } else {
                         reject(new Error(`HTTP ${response.status}`));
                     }
@@ -191,8 +189,19 @@
         if (rawTitle === '未知小说' || rawTitle.includes('TXT下载')) {
             const titleTag = document.querySelector('title')?.textContent;
             if (titleTag) {
-                const parts = titleTag.split('-');
-                if (parts.length > 0) rawTitle = parts[0].trim();
+                const parts = titleTag.split('-').map(p => p.trim()).filter(Boolean);
+                let startIdx = 0;
+                if (parts.length > 1 && /^\d+$/.test(parts[0])) startIdx = 1;
+                for (let i = startIdx; i < parts.length; i++) {
+                    const p = parts[i];
+                    if (!p.includes('TXT') && !p.includes('速读谷') && !p.includes('下载')) {
+                        rawTitle = p;
+                        break;
+                    }
+                }
+                if (rawTitle === '未知小说' || rawTitle.includes('TXT下载')) {
+                    rawTitle = parts[startIdx] || parts[0];
+                }
             }
         }
 
@@ -285,6 +294,23 @@
                 downloadOne(nextIndex++);
             }
         });
+    }
+
+    function downloadFile(content, filename) {
+        const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        try {
+            if (typeof GM_download !== 'undefined') {
+                GM_download({ url, name: filename + '.txt', saveAs: false, onload: () => URL.revokeObjectURL(url) });
+                return;
+            }
+        } catch (e) {}
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = filename + '.txt';
+        document.body.appendChild(link);
+        link.click();
+        setTimeout(() => { document.body.removeChild(link); URL.revokeObjectURL(url); }, 1000);
     }
 
     async function startDownload() {
@@ -457,12 +483,7 @@
 
             if (isDownloading) {
                 const fullContent = contentArray.filter(c => c !== null).join('\n\n');
-                const blob = new Blob([fullContent], { type: 'text/plain;charset=utf-8' });
-                const link = document.createElement('a');
-                link.href = URL.createObjectURL(blob);
-                link.download = `${safeTitle}.txt`;
-                link.click();
-                URL.revokeObjectURL(link.href);
+                downloadFile(fullContent, safeTitle);
 
                 document.getElementById('sudu-status').textContent = '✅ 下载完成！';
                 document.getElementById('sudu-progress-bar').style.width = '100%';
@@ -485,85 +506,79 @@
         isDownloading = false;
     }
 
-    function autoJumpToDownloadPage() {
+    function tryJumpToDownloadPage() {
         const currentUrl = window.location.href;
-        
         if (currentUrl.includes('/txt.html')) {
             createDownloadButton();
             return;
         }
-
         const match = currentUrl.match(/https:\/\/www\.sudugu\.org\/(\d+)/);
-        if (!match) {
-            return;
+        if (match) {
+            window.location.href = `https://www.sudugu.org/${match[1]}/txt.html#dir`;
         }
+    }
 
-        const novelId = match[1];
-        const downloadUrl = `https://www.sudugu.org/${novelId}/txt.html#dir`;
+    function enableAutoPagination() {
+        const pageNav = document.querySelector('.page ul');
+        if (!pageNav) return;
+        const nextLink = Array.from(pageNav.querySelectorAll('a')).find(a => a.textContent.trim().includes('下一页'));
+        if (!nextLink) return;
 
-        const jumpNotice = document.createElement('div');
-        jumpNotice.id = 'sudu-jump-notice';
-        jumpNotice.style.cssText = `
-            position: fixed;
-            top: 10px;
-            right: 10px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 12px 20px;
-            border-radius: 10px;
-            z-index: 10000;
-            font-size: 13px;
-            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
-            display: flex;
-            align-items: center;
-            gap: 10px;
+        const indicator = document.createElement('div');
+        indicator.id = 'sudu-auto-page';
+        indicator.textContent = '🔄';
+        indicator.style.cssText = `
+            position: fixed; bottom: 10px; left: 50%; transform: translateX(-50%);
+            z-index: 10000; background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white; padding: 6px 16px; border-radius: 20px;
+            font-size: 12px; cursor: pointer; box-shadow: 0 2px 10px rgba(102,126,234,0.4);
+            white-space: nowrap;
         `;
+        document.body.appendChild(indicator);
 
-        const countdownSpan = document.createElement('span');
-        countdownSpan.id = 'sudu-jump-countdown';
-        countdownSpan.textContent = Math.ceil(AUTO_JUMP_DELAY / 1000);
-
-        const cancelBtn = document.createElement('button');
-        cancelBtn.textContent = '取消';
-        cancelBtn.style.cssText = `
-            background: rgba(255,255,255,0.2);
-            border: none;
-            color: white;
-            padding: 4px 10px;
-            border-radius: 15px;
-            cursor: pointer;
-            font-size: 12px;
-        `;
-
-        jumpNotice.innerHTML = `
-            <span>📥</span>
-            <span>正在跳转到下载页...</span>
-            <span id="sudu-jump-countdown">${Math.ceil(AUTO_JUMP_DELAY / 1000)}</span>
-        `;
-        jumpNotice.appendChild(cancelBtn);
-
-        document.body.appendChild(jumpNotice);
-
-        const maxCount = Math.ceil(AUTO_JUMP_DELAY / 1000);
-        let countdown = maxCount;
-        const countdownInterval = setInterval(() => {
-            countdown--;
-            document.getElementById('sudu-jump-countdown').textContent = Math.max(countdown, 0);
-            if (countdown <= 0) {
-                clearInterval(countdownInterval);
-                window.location.href = downloadUrl;
-            }
-        }, 1000);
-
-        cancelBtn.addEventListener('click', () => {
-            clearInterval(countdownInterval);
-            clearTimeout(jumpTimeout);
-            jumpNotice.remove();
+        let isActive = true;
+        let isLoading = false;
+        indicator.addEventListener('click', () => {
+            isActive = !isActive;
+            indicator.textContent = isActive ? '🔄' : '⏸ 已暂停';
+            indicator.style.background = isActive ? 'linear-gradient(135deg, #667eea, #764ba2)' : '#999';
         });
+
+        let timer = null;
+        window.addEventListener('scroll', () => {
+            if (!isActive || isLoading) return;
+            clearTimeout(timer);
+            timer = setTimeout(() => {
+                const dist = document.documentElement.scrollHeight - window.innerHeight - window.scrollY;
+                if (dist < 200) {
+                    isLoading = true;
+                    indicator.textContent = '📄 加载中...';
+                    nextLink.click();
+                }
+            }, 300);
+        });
+
+        const observer = new MutationObserver(() => {
+            const nav = document.querySelector('.page ul');
+            if (!nav) return;
+            const link = Array.from(nav.querySelectorAll('a')).find(a => a.textContent.trim().includes('下一页'));
+            if (link) {
+                isLoading = false;
+                indicator.textContent = '🔄';
+            }
+        });
+        observer.observe(document.body, { childList: true, subtree: true });
     }
 
     function init() {
-        autoJumpToDownloadPage();
+        const url = window.location.href;
+        if (url.includes('/txt.html')) {
+            createDownloadButton();
+        } else if (/^https:\/\/www\.sudugu\.org\/\d+/.test(url)) {
+            tryJumpToDownloadPage();
+        } else {
+            enableAutoPagination();
+        }
     }
 
     if (document.readyState === 'loading') {
