@@ -121,7 +121,6 @@
             GM_xmlhttpRequest({
                 method: 'GET',
                 url: url,
-                responseType: 'blob',
                 onprogress: (progress) => {
                     if (onProgress && progress.loaded) {
                         onProgress(progress.loaded, progress.total || 0);
@@ -300,20 +299,35 @@
     }
 
     function downloadFile(content, filename) {
+        const safeName = filename.replace(/[\/\\:*?"<>|]/g, '').trim() || '小说';
         const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
         const url = URL.createObjectURL(blob);
-        try {
-            if (typeof GM_download !== 'undefined') {
-                GM_download({ url, name: filename + '.txt', saveAs: false, onload: () => URL.revokeObjectURL(url) });
-                return;
-            }
-        } catch (e) {}
+        if (typeof GM_download !== 'undefined') {
+            GM_download({
+                url: url,
+                name: safeName + '.txt',
+                saveAs: true,
+                onload: () => {
+                    URL.revokeObjectURL(url);
+                    showNotification('文件已保存: ' + safeName + '.txt', 'success');
+                },
+                onerror: () => {
+                    URL.revokeObjectURL(url);
+                    showNotification('保存失败，请尝试手动保存', 'error');
+                }
+            });
+            return;
+        }
         const link = document.createElement('a');
         link.href = url;
-        link.download = filename + '.txt';
+        link.download = safeName + '.txt';
         document.body.appendChild(link);
         link.click();
-        setTimeout(() => { document.body.removeChild(link); URL.revokeObjectURL(url); }, 1000);
+        setTimeout(() => {
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+            showNotification('如未下载，请在浏览器下载目录查找', 'info');
+        }, 1000);
     }
 
     async function startDownload() {
